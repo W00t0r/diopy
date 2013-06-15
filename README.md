@@ -17,7 +17,12 @@ Digital Ocean API base calls
 * ssh\_keys
 
 Usage in Python:
-client = Client(CLIENT\ID, API\_KEY)
+----------------
+
+client = Client(CLIENT\_ID, API\_KEY)
+
 droplets = client.droplets()
+
 domains = client.domains()
+
 new\_droplet = client.new\_droplet(name, size, image, region, ssh\_keys)
