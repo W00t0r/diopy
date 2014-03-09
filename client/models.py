@@ -83,7 +83,7 @@ class DiopyClient():
 
         return self._droplets
 
-    def new_droplet(self, name, size, image, region, ssh_keys=[]):
+    def new_droplet(self, name, size, image, region, ssh_keys=[], private_networking=False, backups_enabled=False):
         """Create and return a new droplet.
 
         :param string name: The name of the droplet.
@@ -103,9 +103,9 @@ class DiopyClient():
             'size_id': size.id,
             'image_id': image.id,
             'region_id': region.id,
-            #'ssh_key_ids': ssh_keys,
-            #'private_networking': private_networking,
-            #'backups_enabled': backups_enabled,
+            'ssh_key_ids': ",".join([str(ssh_key.id) for ssh_key in ssh_keys]),
+            'private_networking': private_networking,
+            'backups_enabled': backups_enabled,
         }
         params.update(self._client_params())
         response = get(url, params=params)
@@ -113,7 +113,11 @@ class DiopyClient():
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == OK_STATUS:
-                droplet = Droplet(**data.get("droplet"))
+                droplet_response_data = data.get("droplet")
+                droplet_response_data.update(self._client_params())
+                droplet_response_data.update({'region_id': region.id})
+
+                droplet = Droplet(**droplet_response_data)
                 self._droplets.append(droplet)
                 return droplet
             #TODO: Handle API ERRORs
