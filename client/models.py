@@ -97,13 +97,44 @@ class DiopyClient():
         :param [SSHKey] ssh_keys: A list with SSHKeys, which will be added to the created droplet.
 
         """
+        return self.new_droplet_with_ids(
+            name=name,
+            size_id=size.id,
+            image_id=image.id,
+            region_id=region.id,
+            ssh_key_ids=[ssh_key.id for ssh_key in ssh_keys],
+            private_networking=private_networking,
+            backups_enabled=backups_enabled,
+        )
+
+    def new_droplet_with_ids(self,
+                             name,
+                             size_id,
+                             image_id,
+                             region_id,
+                             ssh_key_ids=[],
+                             private_networking=False,
+                             backups_enabled=False):
+        """Create and return a new droplet, using the object ids directly.
+
+        :param string name: The name of the droplet.
+
+        :param int size_id: The Size id used to create the droplet.
+
+        :param int image_id: The Image id used to create the droplet.
+
+        :param int region_id: The Region id used to create the droplet.
+
+        :param [int] ssh_key_ids: A list with SSHKey ids, which will be added to the created droplet.
+
+        """
         url = get_api_url("droplets") + "/new"
         params = {
             'name': name,
-            'size_id': size.id,
-            'image_id': image.id,
-            'region_id': region.id,
-            'ssh_key_ids': ",".join([str(ssh_key.id) for ssh_key in ssh_keys]),
+            'size_id': size_id,
+            'image_id': image_id,
+            'region_id': region_id,
+            'ssh_key_ids': ",".join([str(ssh_key_id) for ssh_key_id in ssh_key_ids]),
             'private_networking': private_networking,
             'backups_enabled': backups_enabled,
         }
@@ -115,7 +146,7 @@ class DiopyClient():
             if data.get("status") == OK_STATUS:
                 droplet_response_data = data.get("droplet")
                 droplet_response_data.update(self._client_params())
-                droplet_response_data.update({'region_id': region.id})
+                droplet_response_data.update({'region_id': region_id})
 
                 droplet = Droplet(**droplet_response_data)
                 self._droplets.append(droplet)
