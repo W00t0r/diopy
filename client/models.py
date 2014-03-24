@@ -1,11 +1,16 @@
 from requests import get
-from diopy.resources.models import Region, Size, SSHKey, Droplet, Image
-from diopy.resources.settings import OK_STATUS
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String
+
+from diopy.resources.models import Region, Size, SSHKey, Droplet, Image, Event
+from diopy.resources.settings import OK_STATUS, DO_URL
+
+Base = declarative_base()
 
 
 def get_api_url(requested_item_type):
     """Get the correct digital ocean api url for a specific type of items."""
-    base = "https://api.digitalocean.com"
+    base = DO_URL
     item_type = {
         'droplets': "/droplets",
         'images': "/images",
@@ -27,19 +32,20 @@ class DiopyClient():
         from the DigitalOcean user account.
 
         """
-        self._client_id = client_id
-        self._api_key = api_key
+        self.client_id = client_id
+        self.api_key = api_key
         self._droplets = []
         self._sizes = []
         self._regions = []
         self._ssh_keys = []
         self._images = []
+        self._events = []
 
     def _client_params(self):
         """Return the parameters for authentication with the API."""
         return {
-            'client_id': self._client_id,
-            'api_key': self._api_key,
+            'client_id': self.client_id,
+            'api_key': self.api_key,
         }
 
     def _get_item_list_from_api(self, item_name):
@@ -49,7 +55,7 @@ class DiopyClient():
         :param string item_name: The name of the api items.
 
         """
-        url = get_api_url(item_name)
+        url = DO_URL + "/" + item_name
         response = get(url, params=self._client_params())
 
         if response.status_code == 200:
@@ -70,18 +76,48 @@ class DiopyClient():
 
     def droplets(self, force_refresh=False):
         """Returns a list of all available droplets.
+
         :param Boolean refresh: Refresh the list from the HTTP API, otherwise use the cached list.
+
         """
         if force_refresh or not self._droplets:
-            self._droplets = [
+            self._droplets = []
+            droplets = [
                 Droplet(
-                    client_id=self._client_id,
-                    api_key=self._api_key,
+                    client_id=self.client_id,
+                    api_key=self.api_key,
                     **kwargs
                 ) for kwargs in self._get_item_list_from_api("droplets")
             ]
 
+            for droplet in droplets:
+                # Get full information for the droplets and update them here.
+                self.update_droplet_info(droplet)
+                self._droplets.append(droplet)
+
         return self._droplets
+
+    def update_droplet_info(self, droplet):
+        """Get more detailed information for given droplet."""
+        url = DO_URL + "/droplets/{droplet_id}".format(droplet_id=droplet.id)
+        response = get(url, params=self._client_params())
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == OK_STATUS:
+                droplet_info = data.get("droplet")
+            #TODO: Handle API ERRORs
+            return droplet.update_info(**droplet_info)
+        else:
+            raise Exception(
+                "Failed to retrieve Droplet {0}, check connection.".format(droplet_id)
+            )
+
+    def get_droplet_with_id(self, droplet_id):
+        """Get the droplet with given droplet_id."""
+        for droplet in self.droplets():
+            if droplet.id == droplet_id:
+                return droplet
 
     def new_droplet(self, name, size, image, region, ssh_keys=[], private_networking=False, backups_enabled=False):
         """Create and return a new droplet.
@@ -128,7 +164,7 @@ class DiopyClient():
         :param [int] ssh_key_ids: A list with SSHKey ids, which will be added to the created droplet.
 
         """
-        url = get_api_url("droplets") + "/new"
+        url = DO_URL + "/droplets/new"
         params = {
             'name': name,
             'size_id': size_id,
@@ -181,3 +217,37 @@ class DiopyClient():
         if force_refresh or not self._ssh_keys:
             self._ssh_keys = [SSHKey(**kwargs) for kwargs in self._get_item_list_from_api("ssh_keys")]
         return self._ssh_keys
+
+    def events(self, force_refresh=False):
+        """Returns all the events cached by the client.
+        Provides an extra option 'refresh_droplet_events' to force the refreshing of events by
+        fetching all the event_id parameters of each cached Droplet and then refresh the event
+        information from Digital Ocean.
+
+        """
+        if force_refresh:
+            droplet_event_ids = [droplet.event_id for droplet in self.droplets()]
+            new_events = [self.get_event(event_id) for event_id in droplet_event_ids]
+            self._events = new_events
+
+        return self._events
+
+    def add_event(self, event):
+        """Adds the given event to the clients events list."""
+        self._events.append(event)
+
+    def get_event(self, event_id):
+        """Get the status and progress of an Event."""
+        url = DO_URL + '/events/{event_id}'.format(event_id=event_id)
+        response = get(url, params=self._client_params())
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == OK_STATUS:
+                event_data = data.get("event")
+                return Event(**event_data)
+            #TODO: Handle API ERRORs
+        else:
+            raise Exception(
+                "Failed to retrieve {0}, check connection.".format(item_name)
+            )

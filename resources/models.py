@@ -6,19 +6,19 @@ from diopy.resources.exceptions import HttpStatusError
 
 class Region():
     """A digital ocean region."""
-    def __init__(self, id, name, slug):
-        self.id = id
+    def __init__(self, region_id, name, slug):
+        self.region_id = region_id
         self.name = name
         self.slug = slug
 
     def __repr__(self):
-        return "<Region {id}: {name}>".format(id=self.id, name=self.name)
+        return "<Region {region_id}: {name}>".format(region_id=self.region_id, name=self.name)
 
 
 class Size():
     """A digital ocean droplet size."""
-    def __init__(self, id, cpu, name, slug, disk, memory, cost_per_hour, cost_per_month):
-        self.id = id
+    def __init__(self, size_id, cpu, name, slug, disk, memory, cost_per_hour, cost_per_month):
+        self.size_id = size_id
         self.cpu = cpu
         self.name = name
         self.slug = slug
@@ -28,13 +28,13 @@ class Size():
         self.cost_per_month = cost_per_month
 
     def __repr__(self):
-        return "<Size {id}: {name}>".format(id=self.id, name=self.name)
+        return "<Size {size_id}: {name}>".format(size_id=self.size_id, name=self.name)
 
 
 class Image():
     """A digital ocean Image, on which a new droplet can be based."""
-    def __init__(self, id, name, slug, public, regions, distribution, region_slugs):
-        self.id = id
+    def __init__(self, image_id, name, slug, public, regions, distribution, region_slugs):
+        self.image_id = image_id
         self.name = name
         self.slug = slug
         self.public = public
@@ -43,27 +43,30 @@ class Image():
         self.region_slugs = region_slugs
 
     def __repr__(self):
-        return "<Image {id}: {name}>".format(id=self.id, name=self.name)
+        return "<Image {image_id}: {name}>".format(image_id=self.image_id, name=self.name)
 
 
 class SSHKey():
     """A digital ocean ssh key."""
-    def __init__(self, id, name):
-        self.id = id
+    def __init__(self, ssh_key_id, name):
+        self.ssh_key_id = ssh_key_id
         self.name = name
 
     def __repr__(self):
-        return "<SSHKey {id}: {name}>".format(id=self.id, name=self.name)
+        return "<SSHKey {ssh_key_id}: {name}>".format(ssh_key_id=self.ssh_key_id, name=self.name)
 
 
 class Event():
     """A digital ocean event. An event is used to keep track of the progress of an action over time."""
-    def __init__(self, id):
-        self.id = id
-        self.progress = 0
+    def __init__(self, event_id, **kwargs):
+        self.event_id = event_id
+        self.percentage = 0
+        self.action_status = None
+        self.droplet_id = None
+        self.event_type_id = None
 
     def __repr__(self):
-        return "<Event {id}>".format(id=self.id)
+        return "<Event {event_id}>".format(event_id=self.event_id)
 
 
 class Droplet():
@@ -108,7 +111,38 @@ class Droplet():
         self.api_url = DO_URL + "/droplets/{droplet_id}".format(droplet_id=self.id)
 
     def __repr__(self):
-        return "<Droplet {id}: {name}>".format(id=self.id, name=self.name)
+        return "<Droplet {droplet_id}: {name}>".format(droplet_id=self.id, name=self.name)
+
+    def update_info(self, id, image_id, name, region_id, size_id, backups_active, backups, snapshots, ip_address,
+                    private_ip_address, locked, status, created_at):
+        if self.id == id:
+            if image_id:
+                self.image_id = image_id
+            if name:
+                self.name = name
+            if region_id:
+                self.region_id = region_id
+            if size_id:
+                self.size_id = size_id
+            if backups_active:
+                self.backups_active = backups_active
+            if backups:
+                self.backups = backups
+            if snapshots:
+                self.snapshots = snapshots
+            if ip_address:
+                self.ip_address = ip_address
+            if private_ip_address:
+                self.private_ip_address = private_ip_address
+            if locked:
+                self.locked = locked
+            if status:
+                self.status = status
+            if created_at:
+                self.created_at = created_at
+
+        return self
+
 
     def reboot(self):
         """This method allows you to reboot a droplet. This is the preferred method to use if a server is not
